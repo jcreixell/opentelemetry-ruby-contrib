@@ -15,6 +15,7 @@ module OpenTelemetry
 
               rack_span = OpenTelemetry::Instrumentation::Rack.current_span
               if rack_span.recording?
+                puts request.env['action_dispatch.exception']
                 rack_span.name = "#{self.class.name}##{name}" unless request.env['action_dispatch.exception']
 
                 attributes_to_append = {
@@ -24,13 +25,7 @@ module OpenTelemetry
                 attributes_to_append[OpenTelemetry::SemanticConventions::Trace::HTTP_TARGET] = request.filtered_path if request.filtered_path != request.fullpath
                 rack_span.add_attributes(attributes_to_append)
               end
-              begin
-                super(name, request, response)
-              rescue Exception => e
-                rack_span.record_exception(e)
-                rack_span.status = OpenTelemetry::Trace::Status.error("Unhandled exception of type: #{e.class}")
-                raise e
-              end
+              super(name, request, response)
             end
 
             private

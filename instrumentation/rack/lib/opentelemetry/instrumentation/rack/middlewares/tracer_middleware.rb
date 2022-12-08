@@ -87,6 +87,11 @@ module OpenTelemetry
                 end
               end
             end
+          rescue Exception => e
+            span = OpenTelemetry::Trace.current_span(frontend_context)
+            span.record_exception(e)
+            span.status = OpenTelemetry::Trace::Status.error("Unhandled exception of type: #{e.class}")
+            raise e
           ensure
             finish_span(frontend_context)
           end
