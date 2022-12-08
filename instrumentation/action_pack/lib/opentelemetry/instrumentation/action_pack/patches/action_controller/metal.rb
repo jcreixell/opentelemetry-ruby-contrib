@@ -15,7 +15,10 @@ module OpenTelemetry
               rack_span = OpenTelemetry::Instrumentation::Rack.current_span
               if rack_span.recording?
                 rack_span.name = "#{self.class.name}##{name}" unless request.env['action_dispatch.exception']
-
+                if e = request.env['action_dispatch.exception']
+                  rack_span.record_exception(e)
+                  rack_span.status = OpenTelemetry::Trace::Status.error("Unhandled exception of type: #{e.class}")
+                end
                 attributes_to_append = {
                   OpenTelemetry::SemanticConventions::Trace::CODE_NAMESPACE => self.class.name,
                   OpenTelemetry::SemanticConventions::Trace::CODE_FUNCTION => name
