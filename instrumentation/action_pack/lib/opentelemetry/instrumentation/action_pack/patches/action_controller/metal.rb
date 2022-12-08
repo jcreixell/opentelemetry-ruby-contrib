@@ -12,13 +12,11 @@ module OpenTelemetry
           # Module to prepend to ActionController::Metal for instrumentation
           module Metal
             def dispatch(name, request, response)
+
               rack_span = OpenTelemetry::Instrumentation::Rack.current_span
               if rack_span.recording?
                 rack_span.name = "#{self.class.name}##{name}" unless request.env['action_dispatch.exception']
-                if e = request.env['action_dispatch.exception']
-                  rack_span.record_exception(e)
-                  rack_span.status = OpenTelemetry::Trace::Status.error("Unhandled exception of type: #{e.class}")
-                end
+
                 attributes_to_append = {
                   OpenTelemetry::SemanticConventions::Trace::CODE_NAMESPACE => self.class.name,
                   OpenTelemetry::SemanticConventions::Trace::CODE_FUNCTION => name
@@ -26,8 +24,13 @@ module OpenTelemetry
                 attributes_to_append[OpenTelemetry::SemanticConventions::Trace::HTTP_TARGET] = request.filtered_path if request.filtered_path != request.fullpath
                 rack_span.add_attributes(attributes_to_append)
               end
-
-              super(name, request, response)
+              begin
+                super(name, request, response)
+              rescue Exception => e
+                rack_span.record_exception(e)
+                rack_span.status = OpenTelemetry::Trace::Status.error("Unhandled exception of type: #{e.class}")
+                raise e
+              end
             end
 
             private
